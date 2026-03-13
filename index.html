@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BULK — Calorie & Macro Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --bg2: #141414;
+    --bg3: #1c1c1c;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.14);
+    --accent: #c8f135;
+    --accent2: #a8d020;
+    --red: #ff4d4d;
+    --amber: #ffb830;
+    --blue: #3fa0ff;
+    --text: #f0f0f0;
+    --muted: #888;
+    --muted2: #555;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(13,13,13,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text); }
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* LAYOUT */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .hero {
+    padding: 3rem 0 2rem;
+    animation: fadeUp 0.6s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(20px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .hero-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(3rem, 8vw, 6rem);
+    line-height: 0.95;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+  }
+  .hero-title .accent { color: var(--accent); }
+  .hero-sub {
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-top: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* GRID LAYOUTS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+  @media (max-width: 900px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .container { padding: 1rem; }
+  }
+  @media (max-width: 600px) {
+    .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+
+  .card-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .card-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--text);
+  }
+  .card-unit { font-size: 1rem; font-weight: 400; color: var(--muted); margin-left: 2px; }
+
+  .card-accent { border-top: 2px solid var(--accent); }
+  .card-red    { border-top: 2px solid var(--red); }
+  .card-amber  { border-top: 2px solid var(--amber); }
+  .card-blue   { border-top: 2px solid var(--blue); }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .section-num {
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+  }
+
+  /* INPUTS */
+  .form-group { margin-bottom: 1rem; }
+  .form-label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+  input[type="number"], select {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 2px;
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus, select:focus { border-color: var(--accent); }
+  select { font-size: 0.85rem; font-weight: 400; font-family: 'Barlow', sans-serif; cursor: pointer; }
+  select option { background: #1c1c1c; }
+
+  /* MACRO BARS */
+  .macro-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 70px;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .macro-name {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bar-track {
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .macro-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  /* FOOD DATABASE */
+  .food-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .food-tab {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+    font-family: 'Barlow', sans-serif;
+    font-weight: 500;
+  }
+  .food-tab:hover { color: var(--text); }
+  .food-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .food-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+  }
+  .food-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.875rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .food-item:hover { border-color: var(--border2); background: #222; }
+  .food-item-name {
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+  .food-item-kcal {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .food-item-macro { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  /* DAILY LOG */
+  .log-input-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 0.75rem;
+    align-items: end;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 600px) {
+    .log-input-row { grid-template-columns: 1fr 1fr; }
+  }
+  .btn {
+    background: var(--accent);
+    color: #0d0d0d;
+    border: none;
+    border-radius: 2px;
+    padding: 0.55rem 1.2rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--accent2); }
+  .btn:active { transform: scale(0.98); }
+  .btn-ghost {
+    background: none;
+    color: var(--muted);
+    border: 1px solid var(--border2);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-ghost:hover { color: var(--red); border-color: var(--red); }
+
+  .log-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .log-entry {
+    display: grid;
+    grid-template-columns: 1fr 60px 60px 60px 36px;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg3);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    animation: slideIn 0.25s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .log-name { font-size: 0.875rem; font-weight: 500; }
+  .log-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: right;
+  }
+  .log-col-header {
+    display: grid;
+    grid-template-columns: 1fr 60px 60px 60px 36px;
+    gap: 0.75rem;
+    padding: 0 1rem 0.5rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted2);
+  }
+  .log-col-header > *:not(:first-child) { text-align: right; }
+
+  /* PROGRESS RING */
+  .ring-wrap { display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+  .ring-container { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .ring-svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--bg3); stroke-width: 8; }
+  .ring-fg { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1); }
+  .ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .ring-pct {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+  .ring-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+  .ring-details { flex: 1; }
+  .ring-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+  }
+  .ring-detail-row:last-child { border-bottom: none; }
+  .ring-detail-label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .ring-detail-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  /* TIPS */
+  .tip-list { display: flex; flex-direction: column; gap: 0; }
+  .tip-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .tip-item:last-child { border-bottom: none; }
+  .tip-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--border2);
+    line-height: 1;
+    min-width: 2.5rem;
+  }
+  .tip-text { flex: 1; }
+  .tip-title { font-weight: 500; font-size: 0.9rem; margin-bottom: 0.2rem; }
+  .tip-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+
+  /* SECTION SPACING */
+  .section { margin-bottom: 2.5rem; animation: fadeUp 0.5s ease both; }
+  .section:nth-child(2) { animation-delay: 0.05s; }
+  .section:nth-child(3) { animation-delay: 0.1s; }
+  .section:nth-child(4) { animation-delay: 0.15s; }
+  .section:nth-child(5) { animation-delay: 0.2s; }
+
+  /* GOAL BADGE */
+  .goal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(200,241,53,0.1);
+    border: 1px solid rgba(200,241,53,0.25);
+    border-radius: 2px;
+    padding: 3px 10px;
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 2.5rem;
+    color: var(--muted2);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* MEAL FILTERS */
+  .meal-filter-row { display:flex; flex-wrap:wrap; gap:0.4rem; }
+  .meal-filter {
+    padding: 0.4rem 1rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    border-radius: 2px;
+    background: none;
+    font-family: 'Barlow', sans-serif;
+    font-weight: 500;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .meal-filter:hover { color: var(--text); border-color: var(--muted2); }
+  .meal-filter.active { color: #0d0d0d; background: var(--accent); border-color: var(--accent); }
+
+  /* MEAL CARDS */
+  .meals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .meal-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1.1rem;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .meal-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--meal-color, var(--accent));
+    opacity: 0.7;
+  }
+  .meal-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+  .meal-card-emoji { font-size: 1.6rem; margin-bottom: 0.6rem; display: block; }
+  .meal-card-name {
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
+  }
+  .meal-card-tag {
+    display: inline-block;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-bottom: 0.6rem;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+  .meal-card-stats {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .meal-stat { text-align: center; flex: 1; }
+  .meal-stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    display: block;
+  }
+  .meal-stat-lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .meal-card-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; margin-top: 0.4rem; }
+  .meal-card-prep {
+    font-size: 0.7rem;
+    color: var(--muted2);
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* MODAL */
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-emoji { font-size: 2.5rem; line-height: 1; }
+  .modal-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.2rem;
+  }
+  .modal-subtitle { font-size: 0.8rem; color: var(--muted); }
+  .ingredients-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.25rem; }
+  .ingredient-row {
+    display: grid;
+    grid-template-columns: 1fr 80px;
+    align-items: center;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .ingredient-row:last-child { border-bottom: none; }
+  .ingredient-amount { color: var(--muted); text-align: right; font-family: 'Barlow Condensed', sans-serif; font-size: 0.95rem; }
+  .steps-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+  .step-row { display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .step-num-badge {
+    background: var(--accent);
+    color: #0d0d0d;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 2px; }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Bulk<span>OS</span></div>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    <span>Active</span>
+    <span id="today-date"></span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-title">
+      Your<br><span class="accent">Bulk</span><br>Blueprint
+    </div>
+    <div class="hero-sub">Calories · Macros · Muscle · Results</div>
+  </div>
+
+  <!-- CALCULATOR -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <span class="section-title">Calorie Calculator</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+          <div class="form-group">
+            <label class="form-label">Weight (kg)</label>
+            <input type="number" id="weight" value="85" min="40" max="200" oninput="calculate()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Height (cm)</label>
+            <input type="number" id="height" value="187" min="140" max="220" oninput="calculate()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Age</label>
+            <input type="number" id="age" value="20" min="15" max="70" oninput="calculate()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sex</label>
+            <select id="sex" onchange="calculate()">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Activity Level</label>
+          <select id="activity" onchange="calculate()">
+            <option value="1.2">Sedentary — desk job, little movement</option>
+            <option value="1.375">Lightly active — 1–3 workouts/week</option>
+            <option value="1.55" selected>Moderately active — 3–5 workouts/week</option>
+            <option value="1.725">Very active — 6–7 hard sessions/week</option>
+            <option value="1.9">Athlete — 2× daily training</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bulk Strategy</label>
+          <select id="strategy" onchange="calculate()">
+            <option value="200">Lean bulk (+200 kcal) — slowest fat gain</option>
+            <option value="300" selected>Standard bulk (+300 kcal) — recommended</option>
+            <option value="500">Aggressive bulk (+500 kcal) — fastest mass</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div class="card card-accent">
+          <div class="card-label">Bulk Target</div>
+          <div class="card-value"><span id="res-bulk">—</span><span class="card-unit">kcal</span></div>
+          <div style="margin-top:0.75rem;" id="goal-badge-wrap"></div>
+        </div>
+        <div class="grid-3" style="gap:0.75rem;">
+          <div class="card">
+            <div class="card-label">Maintenance</div>
+            <div class="card-value" style="font-size:1.6rem"><span id="res-tdee">—</span></div>
+          </div>
+          <div class="card card-blue">
+            <div class="card-label">Protein</div>
+            <div class="card-value" style="font-size:1.6rem"><span id="res-prot">—</span><span class="card-unit">g</span></div>
+          </div>
+          <div class="card">
+            <div class="card-label">Est. gain</div>
+            <div class="card-value" style="font-size:1.6rem"><span id="res-gain">—</span><span class="card-unit">kg/wk</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label" style="margin-bottom:1rem;">Macro Breakdown</div>
+          <div class="macro-row">
+            <div class="macro-name">Protein</div>
+            <div class="bar-track"><div class="bar-fill" id="bar-prot" style="background:var(--blue);width:0%"></div></div>
+            <div class="macro-val" style="color:var(--blue)"><span id="m-prot">—</span>g</div>
+          </div>
+          <div class="macro-row">
+            <div class="macro-name">Carbs</div>
+            <div class="bar-track"><div class="bar-fill" id="bar-carb" style="background:var(--accent);width:0%"></div></div>
+            <div class="macro-val" style="color:var(--accent)"><span id="m-carb">—</span>g</div>
+          </div>
+          <div class="macro-row" style="margin-bottom:0">
+            <div class="macro-name">Fats</div>
+            <div class="bar-track"><div class="bar-fill" id="bar-fat" style="background:var(--amber);width:0%"></div></div>
+            <div class="macro-val" style="color:var(--amber)"><span id="m-fat">—</span>g</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAILY LOG -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <span class="section-title">Daily Food Log</span>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-label" style="margin-bottom:1rem;">Add food</div>
+          <div class="log-input-row">
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Food name</label>
+              <input type="text" id="food-name-input" placeholder="e.g. Chicken breast" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:2px;color:var(--text);font-family:'Barlow',sans-serif;font-size:0.95rem;padding:0.55rem 0.75rem;outline:none;" onkeydown="if(event.key==='Enter')addFood()">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Calories</label>
+              <input type="number" id="food-kcal-input" placeholder="400" style="font-size:1rem;" onkeydown="if(event.key==='Enter')addFood()">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Protein (g)</label>
+              <input type="number" id="food-prot-input" placeholder="35" style="font-size:1rem;" onkeydown="if(event.key==='Enter')addFood()">
+            </div>
+            <button class="btn" onclick="addFood()">Add +</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="log-col-header">
+            <span>Food</span><span>Kcal</span><span>Prot</span><span>Prog</span><span></span>
+          </div>
+          <div class="log-list" id="log-list">
+            <div class="empty-state" id="log-empty">No foods logged yet</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-label" style="margin-bottom:1.25rem;">Today's progress</div>
+          <div class="ring-wrap">
+            <div class="ring-container">
+              <svg class="ring-svg" width="120" height="120" viewBox="0 0 120 120">
+                <circle class="ring-bg" cx="60" cy="60" r="52"/>
+                <circle class="ring-fg" id="ring-kcal" cx="60" cy="60" r="52" stroke="var(--accent)"
+                  stroke-dasharray="0 327" stroke-dashoffset="0"/>
+              </svg>
+              <div class="ring-text">
+                <div class="ring-pct" id="ring-pct" style="color:var(--accent)">0%</div>
+                <div class="ring-label">of goal</div>
+              </div>
+            </div>
+            <div class="ring-details">
+              <div class="ring-detail-row">
+                <span class="ring-detail-label">Calories eaten</span>
+                <span class="ring-detail-val" id="tot-kcal" style="color:var(--accent)">0</span>
+              </div>
+              <div class="ring-detail-row">
+                <span class="ring-detail-label">Target</span>
+                <span class="ring-detail-val" id="ring-target">—</span>
+              </div>
+              <div class="ring-detail-row">
+                <span class="ring-detail-label">Remaining</span>
+                <span class="ring-detail-val" id="ring-remain">—</span>
+              </div>
+              <div class="ring-detail-row">
+                <span class="ring-detail-label">Protein eaten</span>
+                <span class="ring-detail-val" id="tot-prot" style="color:var(--blue)">0g</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label" style="margin-bottom:1rem;">Weekly weight tracker</div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;align-items:end;margin-bottom:1rem;">
+            <div>
+              <label class="form-label">Today's weight (kg)</label>
+              <input type="number" id="weight-log-input" placeholder="75.5" style="font-size:1rem;">
+            </div>
+            <button class="btn" onclick="logWeight()">Log</button>
+          </div>
+          <div id="weight-log-list" style="display:flex;flex-direction:column;gap:0.5rem;">
+            <div class="empty-state" id="weight-empty">No weight entries yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOD DATABASE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <span class="section-title">Top Bulking Foods</span>
+    </div>
+    <div class="card">
+      <div class="food-tabs">
+        <button class="food-tab active" onclick="switchTab('protein',this)">Protein</button>
+        <button class="food-tab" onclick="switchTab('carbs',this)">Carbs</button>
+        <button class="food-tab" onclick="switchTab('fats',this)">Fats</button>
+        <button class="food-tab" onclick="switchTab('dense',this)">Calorie Dense</button>
+      </div>
+      <div class="food-grid" id="food-db"></div>
+    </div>
+  </div>
+
+  <!-- EASY MEALS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <span class="section-title">Easy Bulk Meals</span>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
+        <div style="display:flex;gap:0;border-bottom:none;" class="meal-filter-row">
+          <button class="meal-filter active" onclick="filterMeals('all',this)">All</button>
+          <button class="meal-filter" onclick="filterMeals('breakfast',this)">Breakfast</button>
+          <button class="meal-filter" onclick="filterMeals('shake',this)">Shakes</button>
+          <button class="meal-filter" onclick="filterMeals('lunch',this)">Lunch</button>
+          <button class="meal-filter" onclick="filterMeals('dinner',this)">Dinner</button>
+          <button class="meal-filter" onclick="filterMeals('snack',this)">Snacks</button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;">Click any meal to log it →</div>
+      </div>
+      <div class="meals-grid" id="meals-grid"></div>
+    </div>
+
+    <!-- Expanded meal modal -->
+    <div id="meal-modal" style="display:none;margin-top:1rem;">
+      <div class="card" style="border-color:var(--border2);position:relative;">
+        <button onclick="closeMealModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;line-height:1;">×</button>
+        <div id="modal-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <span class="section-title">The Rules of Bulking</span>
+    </div>
+    <div class="card">
+      <div class="tip-list">
+        <div class="tip-item">
+          <div class="tip-num">01</div>
+          <div class="tip-text">
+            <div class="tip-title">Protein is non-negotiable</div>
+            <div class="tip-desc">Hit 1.6–2.2g per kg of bodyweight every single day. Without enough protein, extra calories just become fat — your body can't build muscle from carbs and fats alone.</div>
+          </div>
+        </div>
+        <div class="tip-item">
+          <div class="tip-num">02</div>
+          <div class="tip-text">
+            <div class="tip-title">Small surplus wins long-term</div>
+            <div class="tip-desc">Your body can build roughly 0.25–0.5kg of muscle per week max. Any calories beyond what's needed for this growth gets stored as fat. Stay at +200–500 kcal.</div>
+          </div>
+        </div>
+        <div class="tip-item">
+          <div class="tip-num">03</div>
+          <div class="tip-text">
+            <div class="tip-title">Carbs fuel your training</div>
+            <div class="tip-desc">Muscle glycogen is your primary training fuel. Low carbs = worse workouts = less stimulus = less muscle. Time the bulk of your carbs around your training sessions.</div>
+          </div>
+        </div>
+        <div class="tip-item">
+          <div class="tip-num">04</div>
+          <div class="tip-text">
+            <div class="tip-title">Sleep is when you actually grow</div>
+            <div class="tip-desc">Peak growth hormone and testosterone release happens during deep sleep. Muscle protein synthesis runs highest overnight. 7–9 hours is not optional — it's part of the program.</div>
+          </div>
+        </div>
+        <div class="tip-item">
+          <div class="tip-num">05</div>
+          <div class="tip-text">
+            <div class="tip-title">Track the scale weekly, not daily</div>
+            <div class="tip-desc">Daily weight fluctuates by 1–2kg from water, food, and hormones. Take a 7-day average. Target 0.25–0.5kg/week gained. Faster = too much fat. Slower = increase calories by 100–150.</div>
+          </div>
+        </div>
+        <div class="tip-item">
+          <div class="tip-num">06</div>
+          <div class="tip-text">
+            <div class="tip-title">Progressive overload is the real driver</div>
+            <div class="tip-desc">Calories create the environment. But you still have to give your body a reason to build muscle. If you're not lifting heavier or doing more reps over time, no amount of food will build mass.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────
+const foodDB = {
+  protein: [
+    {name:"Chicken breast",kcal:165,per:"100g",macro:"31g protein"},
+    {name:"Eggs",kcal:155,per:"2 large",macro:"13g protein"},
+    {name:"Greek yogurt",kcal:97,per:"100g",macro:"10g protein"},
+    {name:"Tuna (canned)",kcal:130,per:"100g",macro:"29g protein"},
+    {name:"Salmon",kcal:208,per:"100g",macro:"20g protein"},
+    {name:"Beef mince (lean)",kcal:218,per:"100g",macro:"26g protein"},
+    {name:"Cottage cheese",kcal:98,per:"100g",macro:"11g protein"},
+    {name:"Whey protein",kcal:120,per:"1 scoop",macro:"25g protein"},
+    {name:"Shrimp",kcal:99,per:"100g",macro:"24g protein"},
+    {name:"Turkey breast",kcal:189,per:"100g",macro:"29g protein"},
+  ],
+  carbs: [
+    {name:"White rice",kcal:130,per:"100g cooked",macro:"28g carbs"},
+    {name:"Oats",kcal:389,per:"100g dry",macro:"66g carbs"},
+    {name:"Sweet potato",kcal:86,per:"100g",macro:"20g carbs"},
+    {name:"Pasta",kcal:131,per:"100g cooked",macro:"25g carbs"},
+    {name:"Banana",kcal:89,per:"medium",macro:"23g carbs"},
+    {name:"White bread",kcal:265,per:"100g",macro:"49g carbs"},
+    {name:"Lentils",kcal:116,per:"100g",macro:"20g carbs + protein"},
+    {name:"Potatoes",kcal:77,per:"100g",macro:"17g carbs"},
+  ],
+  fats: [
+    {name:"Peanut butter",kcal:588,per:"100g",macro:"50g fats"},
+    {name:"Avocado",kcal:160,per:"100g",macro:"15g healthy fats"},
+    {name:"Olive oil",kcal:884,per:"100g",macro:"100g fats"},
+    {name:"Almonds",kcal:579,per:"100g",macro:"50g fats"},
+    {name:"Walnuts",kcal:654,per:"100g",macro:"65g fats + omega-3"},
+    {name:"Whole eggs",kcal:155,per:"2 eggs",macro:"10g fats"},
+    {name:"Cheese (cheddar)",kcal:402,per:"100g",macro:"33g fats"},
+    {name:"Dark chocolate",kcal:550,per:"100g",macro:"32g fats"},
+  ],
+  dense: [
+    {name:"Peanut butter",kcal:588,per:"100g",macro:"Easy calorie boost"},
+    {name:"Nut mix",kcal:607,per:"100g",macro:"Great snack"},
+    {name:"Whole milk",kcal:149,per:"250ml",macro:"For mass shakes"},
+    {name:"Oats + banana",kcal:500,per:"1 bowl",macro:"Classic bulk breakfast"},
+    {name:"Rice + chicken",kcal:600,per:"1 plate",macro:"Staple bulk meal"},
+    {name:"Pasta bolognese",kcal:800,per:"1 serving",macro:"Easy bulk dinner"},
+    {name:"Beef + potatoes",kcal:700,per:"1 plate",macro:"High protein + carbs"},
+    {name:"Mass gainer",kcal:1000,per:"1 shake",macro:"Last resort"},
+  ]
+};
+
+let logEntries = [];
+let weightEntries = [];
+let currentTarget = 2500;
+let currentProtTarget = 150;
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}).toUpperCase();
+
+function calculate() {
+  const w = parseFloat(document.getElementById('weight').value) || 75;
+  const h = parseFloat(document.getElementById('height').value) || 175;
+  const a = parseFloat(document.getElementById('age').value) || 22;
+  const sex = document.getElementById('sex').value;
+  const act = parseFloat(document.getElementById('activity').value);
+  const surplus = parseInt(document.getElementById('strategy').value);
+
+  const bmr = sex === 'male'
+    ? 10*w + 6.25*h - 5*a + 5
+    : 10*w + 6.25*h - 5*a - 161;
+
+  const tdee = Math.round(bmr * act);
+  const bulk = tdee + surplus;
+  const protG = Math.round(w * 2);
+  const fatKcal = Math.round(bulk * 0.25);
+  const fatG = Math.round(fatKcal / 9);
+  const carbKcal = bulk - (protG * 4) - fatKcal;
+  const carbG = Math.round(carbKcal / 4);
+  const gainPerWeek = (surplus * 7 / 7700).toFixed(2);
+
+  document.getElementById('res-tdee').textContent = tdee.toLocaleString();
+  document.getElementById('res-bulk').textContent = bulk.toLocaleString();
+  document.getElementById('res-prot').textContent = protG;
+  document.getElementById('res-gain').textContent = gainPerWeek;
+
+  document.getElementById('m-prot').textContent = protG;
+  document.getElementById('m-carb').textContent = carbG;
+  document.getElementById('m-fat').textContent = fatG;
+
+  const maxG = Math.max(protG, carbG, fatG);
+  document.getElementById('bar-prot').style.width = Math.round(protG/maxG*100)+'%';
+  document.getElementById('bar-carb').style.width = Math.round(carbG/maxG*100)+'%';
+  document.getElementById('bar-fat').style.width = Math.round(fatG/maxG*100)+'%';
+
+  const strategies = {200:'Lean Bulk',300:'Standard Bulk',500:'Aggressive Bulk'};
+  document.getElementById('goal-badge-wrap').innerHTML =
+    `<div class="goal-badge">${strategies[surplus]} · +${surplus} kcal/day</div>`;
+
+  currentTarget = bulk;
+  currentProtTarget = protG;
+  document.getElementById('ring-target').textContent = bulk.toLocaleString();
+  updateProgress();
+}
+
+// ── FOOD LOG ──────────────────────────────────────────────────────────────
+function addFood() {
+  const name = document.getElementById('food-name-input').value.trim();
+  const kcal = parseInt(document.getElementById('food-kcal-input').value);
+  const prot = parseInt(document.getElementById('food-prot-input').value) || 0;
+  if (!name || !kcal) return;
+
+  logEntries.push({ name, kcal, prot });
+  document.getElementById('food-name-input').value = '';
+  document.getElementById('food-kcal-input').value = '';
+  document.getElementById('food-prot-input').value = '';
+  renderLog();
+  updateProgress();
+}
+
+function removeFood(idx) {
+  logEntries.splice(idx, 1);
+  renderLog();
+  updateProgress();
+}
+
+function renderLog() {
+  const list = document.getElementById('log-list');
+  const empty = document.getElementById('log-empty');
+  if (logEntries.length === 0) {
+    list.innerHTML = '<div class="empty-state" id="log-empty">No foods logged yet</div>';
+    return;
+  }
+
+  const totalKcal = logEntries.reduce((s,e) => s+e.kcal, 0);
+  list.innerHTML = logEntries.map((e, i) => {
+    const pct = Math.min(100, Math.round(e.kcal / currentTarget * 100));
+    return `<div class="log-entry">
+      <span class="log-name">${e.name}</span>
+      <span class="log-val" style="color:var(--accent)">${e.kcal}</span>
+      <span class="log-val" style="color:var(--blue)">${e.prot}g</span>
+      <span class="log-val" style="color:var(--muted)">${pct}%</span>
+      <button class="btn btn-ghost" onclick="removeFood(${i})" style="padding:4px 8px;font-size:0.75rem;">×</button>
+    </div>`;
+  }).join('');
+}
+
+function updateProgress() {
+  const totalKcal = logEntries.reduce((s,e) => s+e.kcal, 0);
+  const totalProt = logEntries.reduce((s,e) => s+e.prot, 0);
+  const pct = Math.min(100, Math.round(totalKcal / currentTarget * 100));
+  const remain = Math.max(0, currentTarget - totalKcal);
+  const circ = 2 * Math.PI * 52;
+
+  document.getElementById('tot-kcal').textContent = totalKcal.toLocaleString();
+  document.getElementById('tot-prot').textContent = totalProt + 'g';
+  document.getElementById('ring-pct').textContent = pct + '%';
+  document.getElementById('ring-remain').textContent = remain.toLocaleString();
+  document.getElementById('ring-kcal').style.strokeDasharray = `${(pct/100)*circ} ${circ}`;
+
+  const ringPct = document.getElementById('ring-pct');
+  if (pct >= 90) ringPct.style.color = '#ff4d4d';
+  else if (pct >= 70) ringPct.style.color = '#ffb830';
+  else ringPct.style.color = 'var(--accent)';
+}
+
+// ── WEIGHT LOG ────────────────────────────────────────────────────────────
+function logWeight() {
+  const val = parseFloat(document.getElementById('weight-log-input').value);
+  if (!val) return;
+  const day = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  weightEntries.unshift({ day, val });
+  if (weightEntries.length > 7) weightEntries.pop();
+  document.getElementById('weight-log-input').value = '';
+  renderWeightLog();
+}
+
+function renderWeightLog() {
+  const list = document.getElementById('weight-log-list');
+  if (weightEntries.length === 0) {
+    list.innerHTML = '<div class="empty-state" id="weight-empty">No weight entries yet</div>';
+    return;
+  }
+  const base = weightEntries[weightEntries.length - 1].val;
+  list.innerHTML = weightEntries.map((e, i) => {
+    const diff = (e.val - base).toFixed(1);
+    const color = diff > 0 ? 'var(--accent)' : diff < 0 ? 'var(--red)' : 'var(--muted)';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">${e.day}</span>
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:700">${e.val} <span style="font-size:0.8rem;color:var(--muted)">kg</span></span>
+      <span style="font-size:0.8rem;font-weight:500;color:${color}">${i < weightEntries.length-1 ? (diff > 0 ? '+' : '') + diff : '—'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── FOOD DATABASE ─────────────────────────────────────────────────────────
+function switchTab(cat, btn) {
+  document.querySelectorAll('.food-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderFoodDB(cat);
+}
+
+function renderFoodDB(cat) {
+  const colors = {protein:'var(--blue)',carbs:'var(--accent)',fats:'var(--amber)',dense:'var(--red)'};
+  document.getElementById('food-db').innerHTML = foodDB[cat].map(f =>
+    `<div class="food-item" onclick="prefillFood('${f.name}', ${f.kcal})">
+      <div class="food-item-name">${f.name}</div>
+      <div class="food-item-kcal" style="color:${colors[cat]}">${f.kcal} kcal</div>
+      <div class="food-item-macro">${f.per} · ${f.macro}</div>
+    </div>`
+  ).join('');
+}
+
+function prefillFood(name, kcal) {
+  document.getElementById('food-name-input').value = name;
+  document.getElementById('food-kcal-input').value = kcal;
+  document.getElementById('food-prot-input').focus();
+  document.getElementById('food-prot-input').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+// ── MEALS DATA ────────────────────────────────────────────────────────────
+const meals = [
+  {
+    id: 1, cat: 'breakfast', emoji: '🥣', color: '#ffb830',
+    name: 'Power Oatmeal', prepTime: '5 min', kcal: 620, prot: 38, carbs: 74, fat: 14,
+    desc: 'The classic bulk breakfast. Slow carbs + protein + healthy fats to fuel your morning.',
+    ingredients: [
+      {name:'Rolled oats (dry)', amount:'100g'},
+      {name:'Whole milk', amount:'300ml'},
+      {name:'Whey protein powder', amount:'1 scoop'},
+      {name:'Banana', amount:'1 medium'},
+      {name:'Peanut butter', amount:'1 tbsp'},
+      {name:'Honey', amount:'1 tsp'},
+    ],
+    steps: [
+      'Cook oats in milk on medium heat for 3–4 min, stirring often.',
+      'Remove from heat. Stir in protein powder until smooth.',
+      'Slice banana on top. Add peanut butter and a drizzle of honey.',
+      'Optional: add a handful of nuts or seeds for extra calories.',
+    ]
+  },
+  {
+    id: 2, cat: 'shake', emoji: '🥤', color: '#3fa0ff',
+    name: 'Mass Gainer Shake', prepTime: '3 min', kcal: 850, prot: 55, carbs: 100, fat: 18,
+    desc: 'Drink your calories when you can\'t stomach another meal. No blender needed.',
+    ingredients: [
+      {name:'Whole milk', amount:'400ml'},
+      {name:'Whey protein powder', amount:'2 scoops'},
+      {name:'Banana (frozen)', amount:'1 large'},
+      {name:'Peanut butter', amount:'2 tbsp'},
+      {name:'Oats (dry)', amount:'40g'},
+      {name:'Cocoa powder', amount:'1 tsp'},
+    ],
+    steps: [
+      'Add all ingredients to a blender.',
+      'Blend on high for 30–45 seconds until completely smooth.',
+      'Drink immediately or refrigerate for up to 4 hours.',
+      'Too thick? Add more milk. Too thin? Add more oats.',
+    ]
+  },
+  {
+    id: 3, cat: 'breakfast', emoji: '🍳', color: '#c8f135',
+    name: 'Egg & Rice Bowl', prepTime: '10 min', kcal: 680, prot: 42, carbs: 70, fat: 20,
+    desc: 'High-protein breakfast that keeps you full all morning. Simple and repeatable.',
+    ingredients: [
+      {name:'Cooked white rice', amount:'200g'},
+      {name:'Whole eggs', amount:'4 large'},
+      {name:'Cheddar cheese', amount:'30g'},
+      {name:'Olive oil', amount:'1 tbsp'},
+      {name:'Salt & pepper', amount:'to taste'},
+      {name:'Hot sauce (optional)', amount:'a few drops'},
+    ],
+    steps: [
+      'Heat oil in a non-stick pan on medium heat.',
+      'Crack in eggs and scramble until just set. Season well.',
+      'Serve over rice. Top with shredded cheese.',
+      'Add hot sauce if you want. Eat immediately.',
+    ]
+  },
+  {
+    id: 4, cat: 'shake', emoji: '🍓', color: '#ff4d4d',
+    name: 'Berry Protein Smoothie', prepTime: '3 min', kcal: 510, prot: 40, carbs: 55, fat: 8,
+    desc: 'Lighter shake for when you want something fresh. Great post-workout.',
+    ingredients: [
+      {name:'Frozen mixed berries', amount:'150g'},
+      {name:'Greek yogurt (full fat)', amount:'200g'},
+      {name:'Whey protein powder', amount:'1 scoop'},
+      {name:'Whole milk', amount:'250ml'},
+      {name:'Honey', amount:'1 tbsp'},
+    ],
+    steps: [
+      'Add all ingredients to a blender.',
+      'Blend for 30 seconds until smooth and creamy.',
+      'Pour and drink straight away — berries oxidise fast.',
+      'Add a banana to bump up calories if needed.',
+    ]
+  },
+  {
+    id: 5, cat: 'lunch', emoji: '🍚', color: '#c8f135',
+    name: 'Chicken & Rice', prepTime: '20 min', kcal: 720, prot: 55, carbs: 78, fat: 12,
+    desc: 'The undisputed king of bulking meals. Make in bulk and meal-prep 4–5 at once.',
+    ingredients: [
+      {name:'Chicken breast', amount:'200g'},
+      {name:'White rice (dry)', amount:'120g'},
+      {name:'Olive oil', amount:'1 tbsp'},
+      {name:'Garlic powder', amount:'1 tsp'},
+      {name:'Paprika', amount:'1 tsp'},
+      {name:'Salt & pepper', amount:'to taste'},
+    ],
+    steps: [
+      'Cook rice in salted water (ratio 1:2) for 12 min. Drain.',
+      'Season chicken with garlic powder, paprika, salt and pepper.',
+      'Pan-fry in olive oil on medium-high for 5–6 min per side until golden.',
+      'Rest 2 min, then slice and serve over rice.',
+    ]
+  },
+  {
+    id: 6, cat: 'lunch', emoji: '🥙', color: '#ffb830',
+    name: 'Tuna Pasta', prepTime: '15 min', kcal: 740, prot: 52, carbs: 88, fat: 14,
+    desc: 'Budget-friendly, zero cooking skill required. A true bulk staple.',
+    ingredients: [
+      {name:'Pasta (any shape)', amount:'150g dry'},
+      {name:'Canned tuna (in water)', amount:'2 cans (160g)'},
+      {name:'Cherry tomatoes', amount:'100g'},
+      {name:'Olive oil', amount:'2 tbsp'},
+      {name:'Parmesan', amount:'20g'},
+      {name:'Salt & pepper', amount:'to taste'},
+    ],
+    steps: [
+      'Cook pasta in salted boiling water until al dente. Drain.',
+      'Drain and flake the tuna into the warm pasta.',
+      'Add olive oil, halved cherry tomatoes, salt and pepper.',
+      'Toss together, top with parmesan, and serve.',
+    ]
+  },
+  {
+    id: 7, cat: 'dinner', emoji: '🥩', color: '#ff4d4d',
+    name: 'Beef Bolognese', prepTime: '30 min', kcal: 890, prot: 58, carbs: 92, fat: 26,
+    desc: 'High-calorie dinner that doesn\'t feel like diet food. Make double and refrigerate.',
+    ingredients: [
+      {name:'Lean beef mince', amount:'250g'},
+      {name:'Pasta', amount:'150g dry'},
+      {name:'Passata / tomato sauce', amount:'200g'},
+      {name:'Onion', amount:'1 medium'},
+      {name:'Garlic', amount:'2 cloves'},
+      {name:'Olive oil', amount:'1 tbsp'},
+    ],
+    steps: [
+      'Dice onion and garlic. Fry in oil on medium heat for 3 min.',
+      'Add mince. Brown for 6–8 min, breaking it up as it cooks.',
+      'Add passata. Simmer on low for 15 min. Season well.',
+      'Cook pasta separately, drain, and combine with sauce.',
+    ]
+  },
+  {
+    id: 8, cat: 'dinner', emoji: '🥔', color: '#3fa0ff',
+    name: 'Salmon & Sweet Potato', prepTime: '25 min', kcal: 760, prot: 44, carbs: 65, fat: 28,
+    desc: 'Omega-3s, complex carbs, and quality protein. The cleanest bulk dinner.',
+    ingredients: [
+      {name:'Salmon fillet', amount:'200g'},
+      {name:'Sweet potato', amount:'300g'},
+      {name:'Olive oil', amount:'2 tbsp'},
+      {name:'Lemon', amount:'½'},
+      {name:'Garlic', amount:'2 cloves'},
+      {name:'Rosemary / thyme', amount:'a few sprigs'},
+    ],
+    steps: [
+      'Preheat oven to 200°C. Cube sweet potato, toss in oil and roast 20 min.',
+      'Season salmon with garlic, lemon juice, herbs, salt and pepper.',
+      'Pan-fry salmon skin-side down for 4 min, flip and cook 2 more min.',
+      'Serve salmon on top of sweet potato with a squeeze of lemon.',
+    ]
+  },
+  {
+    id: 9, cat: 'snack', emoji: '🥜', color: '#ffb830',
+    name: 'PB Rice Cakes', prepTime: '2 min', kcal: 420, prot: 14, carbs: 42, fat: 22,
+    desc: 'Ultra fast snack between meals. No prep, just stack and eat.',
+    ingredients: [
+      {name:'Rice cakes', amount:'4 cakes'},
+      {name:'Peanut butter', amount:'3 tbsp'},
+      {name:'Banana', amount:'1 medium'},
+      {name:'Honey', amount:'drizzle'},
+    ],
+    steps: [
+      'Spread peanut butter generously on each rice cake.',
+      'Slice banana and layer on top.',
+      'Drizzle with honey. Eat immediately.',
+    ]
+  },
+  {
+    id: 10, cat: 'snack', emoji: '🧀', color: '#c8f135',
+    name: 'Cottage Cheese Bowl', prepTime: '2 min', kcal: 320, prot: 30, carbs: 22, fat: 10,
+    desc: 'Slow-digesting casein protein. Perfect before bed to feed muscles overnight.',
+    ingredients: [
+      {name:'Cottage cheese (full fat)', amount:'250g'},
+      {name:'Honey', amount:'1 tbsp'},
+      {name:'Mixed berries', amount:'80g'},
+      {name:'Walnuts', amount:'20g'},
+    ],
+    steps: [
+      'Scoop cottage cheese into a bowl.',
+      'Top with berries, crushed walnuts, and a drizzle of honey.',
+      'Best eaten 30–60 min before bed for overnight muscle recovery.',
+    ]
+  },
+  {
+    id: 11, cat: 'breakfast', emoji: '🥞', color: '#ff4d4d',
+    name: 'Protein Pancakes', prepTime: '10 min', kcal: 550, prot: 45, carbs: 52, fat: 12,
+    desc: 'Feels like a treat, works like a meal. Easy weekend breakfast that hits macros.',
+    ingredients: [
+      {name:'Oat flour (or blended oats)', amount:'80g'},
+      {name:'Whey protein powder', amount:'1 scoop'},
+      {name:'Eggs', amount:'2 large'},
+      {name:'Milk', amount:'100ml'},
+      {name:'Banana (mashed)', amount:'1 medium'},
+      {name:'Coconut oil', amount:'1 tsp'},
+    ],
+    steps: [
+      'Mix oat flour, protein powder together in a bowl.',
+      'Whisk in eggs, milk, and mashed banana until smooth batter forms.',
+      'Heat coconut oil in a pan over medium heat.',
+      'Pour ¼ of batter, cook 2 min each side. Repeat. Top with fruit or syrup.',
+    ]
+  },
+  {
+    id: 12, cat: 'shake', emoji: '🍌', color: '#ffb830',
+    name: 'Peanut Butter Banana Shake', prepTime: '3 min', kcal: 680, prot: 42, carbs: 72, fat: 22,
+    desc: 'Rich, thick, and tastes like dessert. Hard to believe it\'s a bulk meal.',
+    ingredients: [
+      {name:'Whole milk', amount:'350ml'},
+      {name:'Whey protein (vanilla)', amount:'1 scoop'},
+      {name:'Banana (frozen)', amount:'2 medium'},
+      {name:'Peanut butter', amount:'2 tbsp'},
+      {name:'Ice', amount:'a handful'},
+    ],
+    steps: [
+      'Add all ingredients to a blender.',
+      'Blend on high for 45 seconds until thick and creamy.',
+      'Serve immediately. Add oats to bump carbs if needed.',
+    ]
+  },
+];
+
+let activeMealCat = 'all';
+
+function filterMeals(cat, btn) {
+  activeMealCat = cat;
+  document.querySelectorAll('.meal-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMeals();
+  closeMealModal();
+}
+
+function renderMeals() {
+  const filtered = activeMealCat === 'all' ? meals : meals.filter(m => m.cat === activeMealCat);
+  document.getElementById('meals-grid').innerHTML = filtered.map(m => `
+    <div class="meal-card" style="--meal-color:${m.color}" onclick="openMealModal(${m.id})">
+      <span class="meal-card-emoji">${m.emoji}</span>
+      <div class="meal-card-tag">${m.cat}</div>
+      <div class="meal-card-name">${m.name}</div>
+      <div class="meal-card-desc">${m.desc}</div>
+      <div class="meal-card-stats">
+        <div class="meal-stat">
+          <span class="meal-stat-val" style="color:${m.color}">${m.kcal}</span>
+          <span class="meal-stat-lbl">kcal</span>
+        </div>
+        <div class="meal-stat">
+          <span class="meal-stat-val" style="color:var(--blue)">${m.prot}g</span>
+          <span class="meal-stat-lbl">protein</span>
+        </div>
+        <div class="meal-stat">
+          <span class="meal-stat-val" style="color:var(--muted)">${m.carbs}g</span>
+          <span class="meal-stat-lbl">carbs</span>
+        </div>
+      </div>
+      <div class="meal-card-prep">⏱ ${m.prepTime}</div>
+    </div>
+  `).join('');
+}
+
+function openMealModal(id) {
+  const m = meals.find(x => x.id === id);
+  const modal = document.getElementById('meal-modal');
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header">
+      <div class="modal-emoji">${m.emoji}</div>
+      <div>
+        <div class="modal-title">${m.name}</div>
+        <div class="modal-subtitle">${m.cat.charAt(0).toUpperCase()+m.cat.slice(1)} · ${m.prepTime} · ${m.kcal} kcal · ${m.prot}g protein</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;flex-wrap:wrap;">
+      <div>
+        <div class="card-label" style="margin-bottom:0.75rem;">Ingredients</div>
+        <div class="ingredients-list">
+          ${m.ingredients.map(i => `
+            <div class="ingredient-row">
+              <span>${i.name}</span>
+              <span class="ingredient-amount">${i.amount}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="card-label" style="margin-bottom:0.75rem;">How to make it</div>
+        <div class="steps-list">
+          ${m.steps.map((s,i) => `
+            <div class="step-row">
+              <div class="step-num-badge">${i+1}</div>
+              <span>${s}</span>
+            </div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+          <div style="text-align:center;background:var(--bg3);border-radius:3px;padding:0.5rem;">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:700;color:${m.color}">${m.kcal}</div>
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">kcal</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:3px;padding:0.5rem;">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:700;color:var(--blue)">${m.prot}g</div>
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">protein</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:3px;padding:0.5rem;">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:700;color:var(--amber)">${m.fat}g</div>
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">fat</div>
+          </div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:1rem;" onclick="logMeal(${m.id})">+ Log this meal</button>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'block';
+  modal.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closeMealModal() {
+  document.getElementById('meal-modal').style.display = 'none';
+}
+
+function logMeal(id) {
+  const m = meals.find(x => x.id === id);
+  logEntries.push({ name: m.emoji + ' ' + m.name, kcal: m.kcal, prot: m.prot });
+  renderLog();
+  updateProgress();
+  closeMealModal();
+  document.getElementById('log-list').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+renderMeals();
+
+// ── STARTUP ───────────────────────────────────────────────────────────────
+calculate();
+renderFoodDB('protein');
+
+</script>
+</body>
+</html>
